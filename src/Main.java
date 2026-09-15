@@ -5,6 +5,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import static java.lang.System.exit;
@@ -85,8 +86,6 @@ public class Main {
 
     private static void handleFileCheck(File currentFile) throws IOException {
         if (!isBase32Decodable(currentFile.getName())) {
-            //if its base32 decodable check if its in db
-            // we can also decode Base32 and get id to search by ID index could be more performant
             System.out.println("skip");
             return;
         }
@@ -103,14 +102,31 @@ public class Main {
         return checkExists;
     }
 
+    public static String getFileExtension(String fileName) {
+        int i = fileName.lastIndexOf(".");
+        return i > 0 ? fileName.substring(i) : "";
+    }
+
     private static short createNewFileEntry(File currentFile) throws IOException {
         System.out.printf("-> FILE %s\n", currentFile.getPath());
+        String randomAdditions = "";
+        if (!isBase32Decodable(currentFile.getName())) {
+            return 1;
+        }
         String encodedFileName = decodedBase32SplitArray(currentFile.getName())[1];
-        Files.move(currentFile.toPath(), Path.of(currentFile.getParentFile().getPath() + File.separator + encodedFileName), StandardCopyOption.REPLACE_EXISTING);
+        if (returnPathIfItExists(Path.of(currentFile.toString(), encodedFileName)) != null) {
+            randomAdditions = new Random().nextInt() + getFileExtension(encodedFileName);
+            System.out.printf("File already exists! Adding %s\n", randomAdditions);
+        }
+        Files.move(currentFile.toPath(), Path.of(currentFile.getParentFile().getPath() + File.separator + encodedFileName + randomAdditions), StandardCopyOption.REPLACE_EXISTING);
         return 0;
     }
 
     private static File handleFolderCheck(File currentFolder) throws IOException {
+        if (!isBase32Decodable(currentFolder.getName())) {
+            System.out.println("skip");
+            return currentFolder;
+        }
         String newFolderName = decodedBase32SplitArray(currentFolder.getName())[1];
         Path target = Path.of(currentFolder.getParentFile().getPath() + File.separator + newFolderName);
         if (returnPathIfItExists(target) != null) return target.toFile();
@@ -166,7 +182,7 @@ public class Main {
     public static boolean wrapper(Path path) {
         try {
             scanDirectory(path);
-//            afterCleanup(path);
+            afterCleanup(path);
             return true;
         } catch (Exception e) {
             System.out.printf("Exception occurred %s\n", e.getMessage());
