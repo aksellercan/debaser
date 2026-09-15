@@ -1,9 +1,7 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.util.Base64;
 import java.util.List;
@@ -96,16 +94,26 @@ public class Main {
         System.out.printf("New file entry status %d\n", newFileEntry);
     }
 
+    public static Path returnPathIfItExists(Path checkExists) {
+        if (!Files.exists(checkExists)) {
+            System.out.printf("%s does not exist at path %s%n",
+                    (Files.isRegularFile(checkExists) ? "File" : "Folder"), checkExists);
+            return null;
+        }
+        return checkExists;
+    }
+
     private static short createNewFileEntry(File currentFile) throws IOException {
         System.out.printf("-> FILE %s\n", currentFile.getPath());
         String encodedFileName = decodedBase32SplitArray(currentFile.getName())[1];
-        Files.move(currentFile.toPath(), Path.of(currentFile.getParentFile().getPath() + File.separator + encodedFileName));
+        Files.move(currentFile.toPath(), Path.of(currentFile.getParentFile().getPath() + File.separator + encodedFileName), StandardCopyOption.REPLACE_EXISTING);
         return 0;
     }
 
     private static File handleFolderCheck(File currentFolder) throws IOException {
         String newFolderName = decodedBase32SplitArray(currentFolder.getName())[1];
         Path target = Path.of(currentFolder.getParentFile().getPath() + File.separator + newFolderName);
+        if (returnPathIfItExists(target) != null) return target.toFile();
         System.out.printf("mutated path %s\n", target);
         Path result = Files.move(currentFolder.toPath(), target);
         System.out.printf("Created folder NAME %s\n", newFolderName);
